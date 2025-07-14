@@ -1,0 +1,86 @@
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>KPI 분석 리포트</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body { font-family: 'Malgun Gothic', Arial, sans-serif; margin: 40px; }
+        .select-area { margin-bottom: 20px; }
+        .chart-area { width: 100%; max-width: 1200px; margin: auto; }
+    </style>
+</head>
+<body>
+    <h1>KPI 분석 리포트</h1>
+    <div class="select-area">
+        <label>PEG 선택 (최대 4개): </label>
+        <select id="peg-select" multiple size="5">
+            <option value="peg_A">peg_A</option>
+<option value="peg_B">peg_B</option>
+
+        </select>
+        <label>그래프 종류: </label>
+        <select id="chart-type">
+            <option value="line">꺾은선(차분%)</option>
+            <option value="bar">막대(n-1/n avg)</option>
+        </select>
+        <label>보조축 사용: </label>
+        <input type="checkbox" id="secondary-axis">
+        <button onclick="drawChart()">그래프 그리기</button>
+    </div>
+    <div class="chart-area">
+        <div id="chart"></div>
+    </div>
+    <script>
+        const pegChartData = {"peg_A": {"periods": ["cell_1-Jan", "cell_2-Jan"], "n1": [10.5, 15.2], "n": [12.0, 18.7], "diff_percent": [14.29, 23.03]}, "peg_B": {"periods": ["cell_3-Jan"], "n1": [8.1], "n": [9.3], "diff_percent": [14.81]}};
+        function drawChart() {
+            const selected = Array.from(document.getElementById('peg-select').selectedOptions).map(o => o.value).slice(0,4);
+            const chartType = document.getElementById('chart-type').value;
+            const useSecondary = document.getElementById('secondary-axis').checked;
+            let data = [];
+            let layout = { title: 'PEG KPI 비교', xaxis: {title: 'Cell-Period'}, yaxis: {title: ''} };
+            if (chartType === 'line') {
+                layout.yaxis.title = '차분(%)';
+                selected.forEach((peg, idx) => {
+                    data.push({
+                        x: pegChartData[peg].periods,
+                        y: pegChartData[peg].diff_percent,
+                        name: peg,
+                        type: 'scatter',
+                        yaxis: (useSecondary && idx === 1) ? 'y2' : 'y'
+                    });
+                });
+                if (useSecondary && selected.length > 1) {
+                    layout.yaxis2 = { title: '보조축(%)', overlaying: 'y', side: 'right' };
+                }
+            } else {
+                layout.yaxis.title = '평균값';
+                selected.forEach((peg, idx) => {
+                    data.push({
+                        x: pegChartData[peg].periods,
+                        y: pegChartData[peg].n1,
+                        name: peg + ' (n-1)',
+                        type: 'bar',
+                        marker: {color: 'rgba(55,128,191,0.7)'},
+                        yaxis: (useSecondary && idx === 1) ? 'y2' : 'y'
+                    });
+                    data.push({
+                        x: pegChartData[peg].periods,
+                        y: pegChartData[peg].n,
+                        name: peg + ' (n)',
+                        type: 'bar',
+                        marker: {color: 'rgba(255,153,51,0.7)'},
+                        yaxis: (useSecondary && idx === 1) ? 'y2' : 'y'
+                    });
+                });
+                if (useSecondary && selected.length > 1) {
+                    layout.yaxis2 = { title: '보조축(평균값)', overlaying: 'y', side: 'right' };
+                }
+                layout.barmode = 'group';
+            }
+            Plotly.newPlot('chart', data, layout);
+        }
+    </script>
+</body>
+</html>

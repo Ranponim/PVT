@@ -1,0 +1,13 @@
+{
+  "name": "3gpp-kpi-analyzer",
+  "command": "python",
+  "args": ["mcp_server.py"],
+  "env": {}
+}
+
+사용 방법
+pip install pandas openpyxl jinja2
+python mcp_server.py (stdio로 실행)
+Open WebUI/MCPO에서 MCP 서버로 등록하여 사용
+MCP 도구 등록 예시
+궁금한 점이나 추가 요청이 있으면 언제든 말씀해 주세요!
