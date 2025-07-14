@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3GPP 이동통신 KPI 분석 리포트</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #007bff;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #007bff;
+            margin: 0;
+        }
+        .summary-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .peg-section {
+            margin-bottom: 40px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .peg-header {
+            background: #007bff;
+            color: white;
+            padding: 15px 20px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .peg-header:hover {
+            background: #0056b3;
+        }
+        .peg-content {
+            padding: 20px;
+            display: none;
+        }
+        .peg-content.active {
+            display: block;
+        }
+        .chart-container {
+            display: flex;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .chart {
+            flex: 1;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .analysis-panel {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        .expert-comment {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        .recommendations {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        .priority-high {
+            color: #721c24;
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 5px 0;
+        }
+        .priority-medium {
+            color: #856404;
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 5px 0;
+        }
+        .toggle-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        .trend-up {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .trend-down {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .trend-same {
+            color: #6c757d;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>3GPP 이동통신 KPI 분석 리포트</h1>
+            <p>생성일시: {{ generation_time }}</p>
+        </div>
+
+        <div class="summary-section">
+            <h2>📊 종합 분석 결과</h2>
+            <div style="white-space: pre-line;">{{ overall_assessment }}</div>
+        </div>
+
+        {% if recommendations %}
+        <div class="recommendations">
+            <h2>⚠️ 우선 검토 사항</h2>
+            {% for rec in recommendations %}
+            <div class="priority-{{ 'high' if rec.priority == '높음' else 'medium' }}">
+                <strong>{{ rec.peg }}</strong>: {{ rec.reason }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% for peg, comparisons in peg_comparisons.items() %}
+        <div class="peg-section">
+            <div class="peg-header" onclick="toggleSection('{{ peg }}')">
+                <h3>{{ peg }} KPI 분석</h3>
+                <button class="toggle-btn" id="btn-{{ peg }}">▼</button>
+            </div>
+            <div class="peg-content" id="content-{{ peg }}">
+                <div class="chart-container">
+                    <div class="chart">
+                        <h4>전/후 비교 그래프</h4>
+                        <canvas id="chart-{{ peg }}"></canvas>
+                    </div>
+                    <div class="chart">
+                        <h4>변화율 분포</h4>
+                        <canvas id="chart-change-{{ peg }}"></canvas>
+                    </div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Cell</th>
+                            <th>기간</th>
+                            <th>N-1 값</th>
+                            <th>N 값</th>
+                            <th>변화율(%)</th>
+                            <th>트렌드</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for comp in comparisons %}
+                        <tr>
+                            <td>{{ comp.cell_name }}</td>
+                            <td>{{ comp.period }}</td>
+                            <td>{{ comp.n1_value }}</td>
+                            <td>{{ comp.n_value }}</td>
+                            <td>{{ comp.change_percent }}%</td>
+                            <td class="trend-{{ 'up' if comp.trend == '증가' else 'down' if comp.trend == '감소' else 'same' }}">
+                                {{ comp.trend }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <div class="expert-comment">
+                    <h4> 3GPP 이동통신 전문가 분석</h4>
+                    <div style="white-space: pre-line;">{{ expert_analysis[peg] }}</div>
+                </div>
+
+                <div class="analysis-panel">
+                    <h4>📋 성능 영향 분석</h4>
+                    <div style="white-space: pre-line;">{{ performance_impact[peg].description }}</div>
+                    <p><strong>심각도:</strong> {{ performance_impact[peg].severity }}</p>
+                    {% if performance_impact[peg].action_needed %}
+                    <p><strong>조치 필요:</strong> 예</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <script>
+        function toggleSection(peg) {
+            const content = document.getElementById('content-' + peg);
+            const btn = document.getElementById('btn-' + peg);
+            
+            if (content.classList.contains('active')) {
+                content.classList.remove('active');
+                btn.textContent = '▼';
+            } else {
+                content.classList.add('active');
+                btn.textContent = '▲';
+            }
+        }
+
+        // 차트 데이터
+        const chartData = {{ chart_data | tojson }};
+        
+        // 각 PEG별 차트 생성
+        Object.keys(chartData).forEach(peg => {
+            const data = chartData[peg];
+            
+            // 전/후 비교 차트
+            const ctx = document.getElementById('chart-' + peg).getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'N-1',
+                        data: data.n1_values,
+                        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }, {
+                        label: 'N',
+                        data: data.n_values,
+                        backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // 변화율 차트
+            const ctxChange = document.getElementById('chart-change-' + peg).getContext('2d');
+            new Chart(ctxChange, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: '변화율(%)',
+                        data: data.change_percentages,
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

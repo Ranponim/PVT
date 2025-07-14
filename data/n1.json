@@ -1,0 +1,9 @@
+{
+  "peg_A": [
+    {"cell_name": "cell_1", "period": "Jan", "avg_value": 10.5},
+    {"cell_name": "cell_2", "period": "Jan", "avg_value": 15.2}
+  ],
+  "peg_B": [
+    {"cell_name": "cell_3", "period": "Jan", "avg_value": 8.1}
+  ]
+}
